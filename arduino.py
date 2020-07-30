@@ -65,11 +65,11 @@ class ActiveChannel:
         self.mode = sweepingMode
 
     def StartMPPT(self):
-        sendcommand("StartMPPTActiveChannel_" + str(self.channelNumber))
+        sendCommand("StartMPPTActiveChannel_" + str(self.channelNumber))
         self.mode = MPPTMode
 
     def StopMPPT(self):
-        sendcommand("StopMPPTActiveChannel_" + str(self.channelNumber))
+        sendCommand("StopMPPTActiveChannel_" + str(self.channelNumber))
 
 
 class Arduino():
@@ -94,8 +94,6 @@ class Arduino():
         sendCommand("Update")
         response = getResponse()
         response = json.loads(response)
-        print(response['channels'])
-        print(response['channels']['ActiveChannels'][1]['voltage'])
         for channel in self.TemperatureChannels:
             channel.temperature = response['channels']['TemperatureChannels'][channel.channelNumber]['temperature']
         for channel in self.PassiveChannels:
@@ -110,6 +108,10 @@ class Arduino():
             channel.sweepResult.voltage.clear()
             channel.sweepResult.current.clear()
             channel.Sweep()
+
+    def StartMPPTActiveChannels(self):
+        for channel in self.ActiveChannels:
+            channel.StartMPPT()
 
     def getSweepResult(self):
        done = 0

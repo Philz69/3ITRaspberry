@@ -26,17 +26,26 @@ print(datetime.now(timezone.utc))
 arduino.waitForReady()
 print("Arduino is ready")
 
+arduino.Update()
+arduino.PrintStatus()
+
+arduino.SweepActiveChannels()
+arduino.getSweepResult()
+arduino.PrintStatus()
 
 lastUpdate = datetime.now(timezone.utc)
-while(True):
-    arduino.SweepActiveChannels()
-    arduino.getSweepResult()
+arduino.Update()
+arduino.PrintStatus()
 
-    #if(datetime.now(timezone.utc) - lastUpdate > maxUpdateTimedelta):
+arduino.StartMPPTActiveChannels()
+
+
+while(True):
+    if(datetime.now(timezone.utc) - lastUpdate > maxUpdateTimedelta):
     #    start = datetime.now(timezone.utc)
-    #    arduino.Update()
-    #    arduino.PrintStatus()
+        arduino.Update()
+        arduino.PrintStatus()
     #manualCommand()
     #print(getResponse())
 
-print(datetime.now(timezone.utc) - start)
+#print(datetime.now(timezone.utc) - start)
