@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import serial
 import json
 
@@ -5,7 +6,18 @@ nmbPassiveChannels = 8
 nmbActiveChannels = 8
 nmbTemperatureChannels = 16
 
+sweepingMode = "Sweeping"
+MPPTMode = "MPPT"
+idleMode = "Idle"
+
 ser = serial.Serial('COM3', 115200, timeout=10)
+
+@dataclass
+class SweepResult:
+    time: float = 0
+    voltage = []
+    current = []
+
 
 
 def manualCommand():
@@ -14,6 +26,8 @@ def manualCommand():
 
 
 def sendCommand(command):
+    command = command + '\n'
+    print(command.encode())
     ser.write(command.encode())
     return 1
 
@@ -37,20 +51,25 @@ class PassiveChannel:
 
 
 class ActiveChannel:
+
+
     def __init__(self, channelNumber):
         self.channelNumber = channelNumber
         self.voltage = 0
         self.current = 0
+        self.mode = idleMode
+        self.sweepResult = SweepResult()
 
     def Sweep(self):
-        sendCommand("SweepActiveChannel_" + self.channelNumber)
-        return getResponse()
+        sendCommand("SweepActiveChannel_" + str(self.channelNumber))
+        self.mode = sweepingMode
 
     def StartMPPT(self):
-        sendcommand("StartMPPTActiveChannel_" + self.channelNumber)
+        sendcommand("StartMPPTActiveChannel_" + str(self.channelNumber))
+        self.mode = MPPTMode
 
     def StopMPPT(self):
-        sendcommand("StopMPPTActiveChannel_" + self.channelNumber)
+        sendcommand("StopMPPTActiveChannel_" + str(self.channelNumber))
 
 
 class Arduino():
@@ -85,6 +104,32 @@ class Arduino():
         for channel in self.ActiveChannels:
             channel.voltage = response['channels']['ActiveChannels'][channel.channelNumber]['voltage']
             channel.current = response['channels']['ActiveChannels'][channel.channelNumber]['current']
+
+    def SweepActiveChannels(self):
+        for channel in  self.ActiveChannels:
+            channel.sweepResult.voltage.clear()
+            channel.sweepResult.current.clear()
+            channel.Sweep()
+
+    def getSweepResult(self):
+       done = 0
+       while(not done == 8):
+            response = getResponse()
+            print(response)
+            try:
+                response = json.loads(response)
+                channelNumber = response["sweepResults"]["channel"]
+                self.ActiveChannels[channelNumber].sweepResult.time = response["time"]
+                for i,voltage in enumerate(response["sweepResults"]["voltage"]):
+                    self.ActiveChannels[channelNumber].sweepResult.voltage.insert(i, voltage)
+                for i,current in enumerate(response["sweepResults"]["current"]):
+                    self.ActiveChannels[channelNumber].sweepResult.current.insert(i, current)
+                if response["sweepResults"]["progress"] >= 244/255:
+                    self.ActiveChannels[channelNumber].mode = idleMode 
+                    done += 1
+            except json.JSONDecodeError:
+                print("JSON Error")
+
 
     def PrintStatus(self):
         print("Arduino Channels:")
