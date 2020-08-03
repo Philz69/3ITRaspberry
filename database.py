@@ -120,6 +120,9 @@ class DataBase():
             channel.printIDs()
 
     def sendUpate(self, arduino):
+        for i, channel in enumerate(arduino.PassiveChannels):
+            self.PassiveChannels[i].sendUpdate(self.cursor, arduino.lastUpdate, channel.voltage, channel.current)
+            self.db.commit()
         for i, channel in enumerate(arduino.ActiveChannels):
             self.ActiveChannels[i].sendUpdate(self.cursor, arduino.lastUpdate, channel.voltage, channel.current)
             self.db.commit()
