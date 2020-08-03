@@ -1,6 +1,11 @@
 from dataclasses import dataclass
 import serial
 import json
+from datetime import datetime
+from datetime import timezone
+from datetime import timedelta
+
+SQLTimeFormat ="%Y-%m-%d %H:%M:%S"
 
 nmbPassiveChannels = 8
 nmbActiveChannels = 8
@@ -94,6 +99,7 @@ class Arduino():
         sendCommand("Update")
         response = getResponse()
         response = json.loads(response)
+        self.lastUpdate = datetime.now(timezone.utc).strftime(SQLTimeFormat)
         for channel in self.TemperatureChannels:
             channel.temperature = response['channels']['TemperatureChannels'][channel.channelNumber]['temperature']
         for channel in self.PassiveChannels:
@@ -134,6 +140,7 @@ class Arduino():
 
 
     def PrintStatus(self):
+        print("Last Update Time:" + str(self.lastUpdate))
         print("Arduino Channels:")
         print("Temperature:")
         for i in range(0, 16):
