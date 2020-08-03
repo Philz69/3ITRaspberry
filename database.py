@@ -8,6 +8,22 @@ sensorDataTable = "SensorData"
 import mysql.connector
 
 
+class TemperatureChannel():
+
+    channelType = TemperatureChannelType
+
+    def __init__(self, channelID, sensorID = 0):
+        self.channelID = channelID
+        self.sensorID = sensorID
+
+    def sendUpdate(self, cursor, time, temperature):
+        sql = "INSERT INTO " + sensorDataTable + "(time, SensorID, Data) VALUES (%s, %s, %s)"
+        val = (time, self.sensorID, temperature)
+        cursor.execute(sql,val)
+
+    def printIDs(self):
+        print("channelID: " + str(self.channelID) + "| sensorID: " + str(self.sensorID))
+
 class ActiveChannel():
 
     channelType = ActiveChannelType
@@ -30,6 +46,7 @@ class ActiveChannel():
 class DataBase():
 
     ActiveChannels = []
+    TemperatureChannels = []
     
     def __init__(self):
         self.db = mysql.connector.connect(
@@ -53,11 +70,14 @@ class DataBase():
                 self.voltageSensorType = sensorType[0]
             elif sensorType[1] == "current":
                 self.currentSensorType = sensorType[0]
-
+            elif sensorType[1] == "temperature":
+                self.temperatureSensorType = sensorType[0]
 
         for channel in Channels:
             if channel[1] == ActiveChannelType:
                 self.ActiveChannels.append(ActiveChannel(channel[0]))
+            if channel[1] == TemperatureChannelType:
+                self.TemperatureChannels.append(TemperatureChannel(channel[0]))
 
         for sensor in Sensors:
             for channel in self.ActiveChannels:
@@ -66,6 +86,10 @@ class DataBase():
                         channel.voltageSensorID = sensor[0]
                     elif sensor[1] == self.currentSensorType:
                         channel.currentSensorID = sensor[0]
+            for channel in self.TemperatureChannels:
+                if channel.channelID == sensor[2]:
+                    if sensor[1] == self.temperatureSensorType:
+                        channel.sensorID = sensor[0]
 
         for channel in self.ActiveChannels:
             channel.printIDs()
@@ -74,6 +98,10 @@ class DataBase():
         for i, channel in enumerate(arduino.ActiveChannels):
             self.ActiveChannels[i].sendUpdate(self.cursor, arduino.lastUpdate, channel.voltage, channel.current)
             self.db.commit()
+        for i, channel in enumerate(arduino.TemperatureChannels):
+            self.TemperatureChannels[i].sendUpdate(self.cursor, arduino.lastUpdate, channel.temperature)
+            self.db.commit()
+
     def sendVoltage(self, time, voltage):
         sensorID = 1
         sql = "INSERT INTO " + sensorDataTable + "(time, SensorID, Data) VALUES (%s, %s, %s)"

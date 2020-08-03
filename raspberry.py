@@ -43,7 +43,7 @@ while(True):
         database.sendUpate(arduino)
         #database.sendVoltage(arduino.lastUpdate, arduino.ActiveChannels[0].voltage) 
         #database.sendCurrent(arduino.lastUpdate, arduino.ActiveChannels[0].current) 
-        arduino.PrintStatus()
+        #arduino.PrintStatus()
         lastUpdate = datetime.now(timezone.utc)
     #manualCommand()
     #print(getResponse())
