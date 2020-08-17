@@ -36,6 +36,7 @@ arduino.StartMPPTActiveChannels()
 database = DataBase()
 
 
+
 while(True):
     if(datetime.now(timezone.utc) - lastUpdate > maxUpdateTimedelta):
     #    start = datetime.now(timezone.utc)
@@ -43,7 +44,7 @@ while(True):
         database.sendUpate(arduino)
         #database.sendVoltage(arduino.lastUpdate, arduino.ActiveChannels[0].voltage) 
         #database.sendCurrent(arduino.lastUpdate, arduino.ActiveChannels[0].current) 
-        #arduino.PrintStatus()
+        arduino.PrintStatus()
         lastUpdate = datetime.now(timezone.utc)
     #manualCommand()
     #print(getResponse())

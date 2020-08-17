@@ -99,6 +99,7 @@ class Arduino():
         sendCommand("Update")
         response = getResponse()
         response = json.loads(response)
+        self.lastReponse = response
         self.lastUpdate = datetime.now(timezone.utc).strftime(SQLTimeFormat)
         for channel in self.TemperatureChannels:
             channel.temperature = response['channels']['TemperatureChannels'][channel.channelNumber]['temperature']

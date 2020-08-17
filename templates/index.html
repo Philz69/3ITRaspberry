@@ -1,0 +1,31 @@
+
+</script>
+<!DOCTYPE html>
+   <head>
+      <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>>
+      <script type="text/javascript" src="{{ url_for('static',filename='arduino.js') }}"></script>
+      <title>{{ title }}</title>
+      <link rel="stylesheet" href="{{ url_for('static',filename='css/normalize.css')}}">
+      <link rel="stylesheet" href="{{ url_for('static',filename='css/skeleton.css')}}">
+      <link rel="stylesheet" href="{{ url_for('static',filename='css/style.css')}}">
+   </head>
+   <body>
+      <h1>Hello, World!</h1>
+      <h2>The date and time on the server is: {{ time }}</h2>
+      <div class="container">
+         <h1>Active Channels: </h1>
+      {% for channel in arduino.ActiveChannels %}
+         <div class="card four columns">
+            <h2>{{ channel.channelNumber }}</h2>
+            <h3>Voltage: {{channel.voltage}}</h3>
+            <h3>Current: {{channel.current}}</h3>
+            <button class="button-primary" id=StartMPPT value={{channel.channelNumber}}>Start MPPT</button>
+            <button class="button-primary" id=StartSweepIV value={{channel.channelNumber}}>Start SweepIV</button>
+         </div>
+      {% endfor %}
+      </div>
+      <div>
+        <span id=result>?</span>
+      </div>
+   </body>
+</html>
