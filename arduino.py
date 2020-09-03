@@ -8,21 +8,24 @@ from datetime import timedelta
 SQLTimeFormat ="%Y-%m-%d %H:%M:%S"
 
 nmbPassiveChannels = 8
-nmbActiveChannels = 8
+nmbActiveChannels = 9
 nmbTemperatureChannels = 16
 
-sweepingMode = "Sweeping"
-MPPTMode = "MPPT"
-idleMode = "Idle"
+sweepingMode = 2
+MPPTMode = 1
+idleMode = 0
 
-ser = serial.Serial('COM3', 115200, timeout=10)
+ser = serial.Serial('/dev/ttyACM0', 115200, timeout=1)
 
 @dataclass
 class SweepResult:
-    time: float = 0
+    startTime = datetime.now(timezone.utc)
+    startTimeMS: float = 0
+    endTimeMS: float = 0
     voltage = []
     current = []
-
+    sent = False
+    done = False 
 
 
 def manualCommand():
@@ -75,7 +78,7 @@ class ActiveChannel:
 
     def StopMPPT(self):
         sendCommand("StopMPPTActiveChannel_" + str(self.channelNumber))
-
+        self.mode = idleMode
 
 class Arduino():
 
@@ -97,18 +100,18 @@ class Arduino():
 
     def Update(self):
         sendCommand("Update")
-        response = getResponse()
-        response = json.loads(response)
-        self.lastReponse = response
-        self.lastUpdate = datetime.now(timezone.utc).strftime(SQLTimeFormat)
-        for channel in self.TemperatureChannels:
-            channel.temperature = response['channels']['TemperatureChannels'][channel.channelNumber]['temperature']
-        for channel in self.PassiveChannels:
-            channel.voltage = response['channels']['PassiveChannels'][channel.channelNumber]['voltage']
-            channel.current = response['channels']['PassiveChannels'][channel.channelNumber]['current']
-        for channel in self.ActiveChannels:
-            channel.voltage = response['channels']['ActiveChannels'][channel.channelNumber]['voltage']
-            channel.current = response['channels']['ActiveChannels'][channel.channelNumber]['current']
+        self.processResponse()
+        #self.lastReponse = response
+        #self.lastUpdate = datetime.now(timezone.utc).strftime(SQLTimeFormat)
+        #for channel in self.TemperatureChannels:
+        #    channel.temperature = response['channels']['TemperatureChannels'][channel.channelNumber]['temperature']
+        #for channel in self.PassiveChannels:
+        #    channel.voltage = response['channels']['PassiveChannels'][channel.channelNumber]['voltage']
+        #    channel.current = response['channels']['PassiveChannels'][channel.channelNumber]['current']
+        #for channel in self.ActiveChannels:
+        #    channel.voltage = response['channels']['ActiveChannels'][channel.channelNumber]['voltage']
+        #    channel.current = response['channels']['ActiveChannels'][channel.channelNumber]['current']
+        #    channel.mode = response['channels']['ActiveChannels'][channel.channelNumber]['mode']
 
     def SweepActiveChannels(self):
         for channel in  self.ActiveChannels:
@@ -139,19 +142,58 @@ class Arduino():
             except json.JSONDecodeError:
                 print("JSON Error")
 
+    def processResponse(self):
+        try:
+            response = getResponse()
+            response = json.loads(response)
+            self.lastReponse = response
+            self.lastUpdate = datetime.now(timezone.utc).strftime(SQLTimeFormat)
+            try:
+                for channel in self.TemperatureChannels:
+                    channel.temperature = response['channels']['TemperatureChannels'][channel.channelNumber]['temperature']
+                for channel in self.PassiveChannels:
+                    channel.voltage = response['channels']['PassiveChannels'][channel.channelNumber]['voltage']
+                    channel.current = response['channels']['PassiveChannels'][channel.channelNumber]['current']
+                for channel in self.ActiveChannels:
+                    channel.voltage = response['channels']['ActiveChannels'][channel.channelNumber]['voltage']
+                    channel.current = response['channels']['ActiveChannels'][channel.channelNumber]['current']
+                    channel.mode = response['channels']['ActiveChannels'][channel.channelNumber]['mode']
+
+            except KeyError:
+                try:
+                    channelNumber = response["sweepResults"]["channel"]
+                    if response["sweepResults"]["progress"] <= 1/255:
+                        self.ActiveChannels[channelNumber].sweepResult.startTime = datetime.now(timezone.utc)
+                        self.ActiveChannels[channelNumber].sweepResult.startTimeMS = response["time"]
+                        self.ActiveChannels[channelNumber].sweepResult.voltage.clear()
+                        self.ActiveChannels[channelNumber].sweepResult.current.clear()
+                        self.ActiveChannels[channelNumber].sweepResult.sent = False
+                    for i,voltage in enumerate(response["sweepResults"]["voltage"]):
+                        self.ActiveChannels[channelNumber].sweepResult.voltage.insert(i, voltage)
+                    for i,current in enumerate(response["sweepResults"]["current"]):
+                        self.ActiveChannels[channelNumber].sweepResult.current.insert(i, current)
+                    if response["sweepResults"]["progress"] >= 244/255:
+                        self.ActiveChannels[channelNumber].mode = idleMode 
+                        self.ActiveChannels[channelNumber].sweepResult.endTimeMS = response["time"]
+                        self.ActiveChannels[channelNumber].sweepResult.done = True
+                    print(response)
+                except json.JSONDecodeError:
+                    print("JSON Error")
+        except json.JSONDecodeError:
+            print("JSON Error")
 
     def PrintStatus(self):
         print("Last Update Time:" + str(self.lastUpdate))
         print("Arduino Channels:")
         print("Temperature:")
-        for i in range(0, 16):
-            print(str(i) + ": " + str(self.TemperatureChannels[i].temperature))
+        for channel in self.TemperatureChannels:
+            print(str(channel.channelNumber) + ": " + str(channel.temperature))
         print("ActiveChannels")
-        for i in range(0, 8):
-            print(str(i) + "|Voltage" ": " + str(self.ActiveChannels[i].voltage) +
-            "|Current: " + str(self.ActiveChannels[i].current))
+        for channel in self.ActiveChannels:
+            print(str(channel.channelNumber) + "|Voltage" ": " + str(channel.voltage) +
+            "|Current: " + str(channel.current))
         print("PassiveChannels")
-        for i in range(0, 8):
-            print(str(i) + "|Voltage" ": " + str(self.PassiveChannels[i].voltage) + 
-            "|Current: " + str(self.PassiveChannels[i].current))
+        for channel in self.PassiveChannels:
+            print(str(channel.channelNumber) + "|Voltage" ": " + str(channel.voltage) + 
+            "|Current: " + str(channel.current))
         print(flush=True)

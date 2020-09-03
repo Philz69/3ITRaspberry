@@ -1,10 +1,17 @@
 import itertools
 
+
+from datetime import datetime
+from datetime import timezone
+from datetime import timedelta
+
 ActiveChannelType = 1
 TemperatureChannelType = 2
 
 sensorDataTable = "SensorData"
 
+SQLTimeFormat ="%Y-%m-%d %H:%M:%S"
+SQLTimeFormatMS ="%Y-%m-%d %H:%M:%S.%f"
 import mysql.connector
 
 class PassiveChannel():
@@ -53,9 +60,9 @@ class DataBase():
     
     def __init__(self):
         self.db = mysql.connector.connect(
-            host="phil.host",
-            user="raspberrypi",
-            password="raspberrypi",
+            host="localhost",
+            user="raspberry",
+            password="raspberry",
             database = "RaspberryPi"
         )
         self.cursor = self.db.cursor()
@@ -122,13 +129,22 @@ class DataBase():
     def sendUpate(self, arduino):
         for i, channel in enumerate(arduino.PassiveChannels):
             self.PassiveChannels[i].sendUpdate(self.cursor, arduino.lastUpdate, channel.voltage, channel.current)
-            self.db.commit()
         for i, channel in enumerate(arduino.ActiveChannels):
-            self.ActiveChannels[i].sendUpdate(self.cursor, arduino.lastUpdate, channel.voltage, channel.current)
-            self.db.commit()
+            if(channel.mode != 2):
+                self.ActiveChannels[i].sendUpdate(self.cursor, arduino.lastUpdate, channel.voltage, channel.current)
+            if(channel.sweepResult.done and channel.sweepResult.sent == False):
+                timeDelta = (channel.sweepResult.endTimeMS - channel.sweepResult.startTimeMS) / 255
+                print(timeDelta)
+                timeDelta = timedelta(milliseconds=timeDelta)
+                for j, (voltage, current) in enumerate(zip(channel.sweepResult.voltage, channel.sweepResult.current)):
+                    self.ActiveChannels[i].sendUpdate(self.cursor, (channel.sweepResult.startTime + timeDelta*j).strftime(SQLTimeFormatMS), voltage, current)
+                    print(timeDelta*j)
+                    print((channel.sweepResult.startTime + timeDelta*j).strftime(SQLTimeFormatMS))
+
+                channel.sweepResult.sent = True
         for i, channel in enumerate(arduino.TemperatureChannels):
             self.TemperatureChannels[i].sendUpdate(self.cursor, arduino.lastUpdate, channel.temperature)
-            self.db.commit()
+        self.db.commit()
 
     def sendVoltage(self, time, voltage):
         sensorID = 1

@@ -1,36 +1,16 @@
+from database import *
+from datetime import datetime
+from datetime import timezone
+from datetime import timedelta
+
+startMS = 1000
+endMS = 2123
+
+timeDelta = (endMS - startMS)/255
+timeDelta = timedelta(milliseconds=timeDelta)
 
 
+timestamp = datetime.now(timezone.utc)
 
-ActiveChannelType = 1
-TemperatureChannelType = 2
-
-sensorDataTable = "SensorData"
-
-import mysql.connector
-
-
-
-
-db = mysql.connector.connect(
-    host="phil.host",
-    user="raspberrypi",
-    password="raspberrypi",
-    database = "RaspberryPi"
-)
-cursor = db.cursor()
-cursor.execute("SELECT ChannelID, ChannelType FROM Channels")
-Channels = cursor.fetchall()
-
-cursor.execute("SELECT SensorID, SensorType, ChannelID FROM Sensors")
-Sensors = cursor.fetchall()
-
-cursor.execute("SELECT SensorType, SensorDataName FROM SensorTypes")
-SensorTypes = cursor.fetchall()
-
-for x in Channels:
-    print(x)
-    print(x[0])
-for x in Sensors:
-    print(x)
-for x in SensorTypes:
-    print(x)
+for i in range(0, 255):
+    print(timestamp + timeDelta*i)
